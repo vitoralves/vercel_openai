@@ -119,7 +119,3 @@ vercel --prod
 - Auto-eval after every generation (or Premium-only stronger model)
 - Richer observability (latency dashboards, token estimates)
 - Idea comparison view across history
-
-## License
-
-Private portfolio project — update before publishing.
