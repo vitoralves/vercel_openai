@@ -3,3 +3,6 @@ uvicorn
 openai
 fastapi-clerk-auth
 python-dotenv
+upstash-redis
+httpx
+pytest

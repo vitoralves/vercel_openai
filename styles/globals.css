@@ -22,7 +22,15 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+button,
+input,
+textarea,
+nav,
+.markdown-content {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
 }
 
 @layer base {

@@ -1,40 +1,125 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# IdeaGen
 
-## Getting Started
+AI-powered business idea generator for the agent economy.
 
-First, run the development server:
+**Live demo:** [https://vercel-openai-red.vercel.app/](https://vercel-openai-red.vercel.app/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Authenticated users get a **shared lifetime request pool**: **1 on Free**, **5 on Premium** (`premium_subscription` via Clerk Billing). **Generate and score each consume one request.**
+
+**Stack:** Next.js (App Router) · FastAPI · Clerk Auth + Billing · OpenAI SSE streaming · Upstash Redis
+
+## Architecture
+
+```text
+Browser (Clerk session)
+   │  Bearer JWT
+   ▼
+Next.js ──rewrite──► FastAPI (/api/*)
+                       ├─ JWT verify (Clerk JWKS)
+                       ├─ hourly rate limit (Redis)
+                       ├─ Premium check (Clerk Billing API)
+                       ├─ request quota reserve/refund (Redis INCR)
+                       ├─ stream structured idea (OpenAI SSE)
+                       ├─ save history (Redis list)
+                       └─ optional score (OpenAI JSON, same quota)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Choice | Why |
+|--------|-----|
+| Next.js + Python on one deploy | Portfolio-ready full stack; Vercel hosts both |
+| Quota on the server | UI is advisory; Redis atomic `INCR` prevents abuse |
+| SSE | Faster perceived UX than waiting for a full completion |
+| History via client save after stream | Keeps the stream handler simple and reliable |
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+## Features
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+- Sign-in required for `/product` and API routes
+- Industry chips + optional context (max 500 chars)
+- Structured Markdown: Problem, ICP, MVP, Moat, Risks, Go-to-market
+- Generate / regenerate (no auto-fire on mount)
+- Usage banner: `Free/Premium · N requests left` (generate & score share the pool)
+- Idea history with favorites (Upstash)
+- Copy Markdown + download `.md`
+- Optional **Score this idea** (novelty / feasibility / overall; costs 1 request)
+- Generate rate limit: 10/hour/user; score rate limit: 20/hour/user
+- Failed/empty generations and failed scores refund the request credit
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+## API
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/usage` | `{ plan, used, limit, remaining }` |
+| `POST` | `/api/generate` | `{ context? }` → SSE stream + usage headers |
+| `GET` | `/api/ideas` | List saved ideas |
+| `POST` | `/api/ideas` | Save `{ content, context? }` |
+| `POST` | `/api/ideas/{id}/favorite` | `{ favorite: boolean }` |
+| `POST` | `/api/ideas/score` | `{ content, idea_id? }` → scores + usage (1 request) |
 
-## Learn More
+OpenAPI: `http://127.0.0.1:8000/docs` when the API is running locally.
 
-To learn more about Next.js, take a look at the following resources:
+Response headers on generate: `X-Plan`, `X-Used`, `X-Limit`, `X-Remaining`, `X-Model`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+## Local setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+```
 
-## Deploy on Vercel
+`.env.local`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+OPENAI_API_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_JWKS_URL=https://YOUR_INSTANCE.clerk.accounts.dev/.well-known/jwks.json
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+# optional
+OPENAI_MODEL_FREE=gpt-5-nano
+OPENAI_MODEL_PREMIUM=gpt-5-nano
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+```bash
+source .venv/bin/activate
+npm run dev
+```
+
+- App: [http://localhost:3000](http://localhost:3000)
+- API: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+### Tests
+
+```bash
+source .venv/bin/activate
+pytest -q
+```
+
+## Deploy
+
+Framework must be **Next.js**. Mirror all env vars on Vercel (Production + Preview), then:
+
+```bash
+vercel --prod
+```
+
+## Design decisions
+
+1. **Shared lifetime pool (1 free / 5 premium)** — generate and score both spend credits; keyed by Clerk `user_id`.
+2. **Reserve-then-refund** — blocks concurrent double-spends; refunds empty/failed streams and failed scores.
+3. **Score is opt-in but metered** — useful product signal without an unbounded OpenAI path.
+4. **Export is client-side `.md`** — useful immediately; PDF/public shares deferred.
+
+## What I’d do next
+
+- Public shareable links (`/i/[id]`) with privacy controls
+- PDF export
+- Auto-eval after every generation (or Premium-only stronger model)
+- Richer observability (latency dashboards, token estimates)
+- Idea comparison view across history
+
+## License
+
+Private portfolio project — update before publishing.

@@ -5,8 +5,8 @@ import sys
 from dotenv import load_dotenv
 
 root = Path(__file__).resolve().parent.parent
-load_dotenv(root / ".env.local")
-load_dotenv(root / ".env")
+load_dotenv(root / ".env.local", override=True)
+load_dotenv(root / ".env", override=False)
 
 os.chdir(root)
 os.execvp(
