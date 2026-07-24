@@ -58,7 +58,7 @@ function UsageBanner({
 }) {
   if (!usage) {
     return (
-      <div className="rounded-xl border border-stone-200/80 bg-white/70 px-4 py-3 text-sm text-stone-600 backdrop-blur">
+      <div className="rounded-2xl border border-stone-200/80 bg-white/70 px-5 py-4 text-base text-stone-600 backdrop-blur">
         Checking your plan…
       </div>
     );
@@ -70,7 +70,7 @@ function UsageBanner({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+      className={`flex flex-col gap-4 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${
         exhausted
           ? "border-amber-300/80 bg-amber-50/90 text-amber-950"
           : isPremium
@@ -78,24 +78,30 @@ function UsageBanner({
             : "border-stone-200/80 bg-white/80 text-stone-800"
       }`}
     >
-      <div>
-        <span className="font-semibold">
+      <div className="min-w-0">
+        <p className="text-base font-semibold sm:text-lg">
           {isPremium ? "Premium" : "Free"}
-        </span>
-        {" · "}
-        {exhausted
-          ? "No requests left"
-          : `${remaining} request${remaining === 1 ? "" : "s"} left`}{" "}
-        <span className={isPremium ? "text-teal-800/70" : "text-stone-500"}>
-          ({usage.used}/{usage.limit} used · generate & score)
-        </span>
+          <span className="font-normal">
+            {" · "}
+            {exhausted
+              ? "No requests left"
+              : `${remaining} request${remaining === 1 ? "" : "s"} left`}
+          </span>
+        </p>
+        <p
+          className={`mt-1 text-sm ${
+            isPremium ? "text-teal-800/70" : "text-stone-500"
+          }`}
+        >
+          {usage.used}/{usage.limit} used · generate and score share this pool
+        </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
         {!isPremium && (exhausted || remaining <= 1) && (
           <button
             type="button"
             onClick={onUpgradeClick}
-            className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-stone-700"
+            className="rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-700"
           >
             Upgrade to Premium
           </button>
@@ -528,256 +534,266 @@ function IdeaGenerator() {
   const busy = status === "loading" || status === "streaming";
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 lg:grid-cols-[260px_1fr]">
-      <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
+    <div className="mx-auto w-full max-w-[1500px] px-5 pb-16 pt-6 sm:px-8 lg:px-10">
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <Link
+          href="/"
+          className="font-serif text-xl font-semibold tracking-tight text-stone-900 transition hover:text-teal-900 sm:text-2xl"
+        >
+          IdeaGen
+        </Link>
+      </div>
+
+      <div className="mb-8">
         <UsageBanner
           usage={displayUsage}
           onUpgradeClick={() => setShowUpgrade(true)}
         />
+      </div>
 
-        <div className="rounded-2xl border border-stone-200/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold tracking-wide text-stone-800">
-              History
-            </h2>
-            <span className="text-xs text-stone-400">{ideas.length}</span>
-          </div>
-          {sortedIdeas.length === 0 ? (
-            <p className="text-sm text-stone-500">
-              Generated ideas will appear here.
-            </p>
-          ) : (
-            <ul className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
-              {sortedIdeas.map((item) => (
-                <li key={item.id}>
-                  <div
-                    className={`rounded-xl border px-3 py-2 transition ${
-                      activeIdeaId === item.id
-                        ? "border-teal-700/40 bg-teal-50/80"
-                        : "border-stone-200 bg-white hover:border-stone-300"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openIdea(item)}
-                      className="w-full text-left"
-                    >
-                      <p className="line-clamp-2 text-sm font-medium text-stone-800">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-xs text-stone-400">
-                        {new Date(item.created_at * 1000).toLocaleString()}
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void toggleFavorite(item)}
-                      className="mt-2 text-xs font-medium text-teal-800 hover:underline"
-                    >
-                      {item.favorite ? "★ Favorited" : "☆ Favorite"}
-                    </button>
-                  </div>
-                </li>
+      <header className="mb-8 max-w-4xl">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-800">
+          Workspace
+        </p>
+        <h1 className="font-serif text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
+          Business Idea Generator
+        </h1>
+        <p className="mt-4 text-lg text-stone-600 sm:text-xl">
+          Pick an industry chip, add optional context, then stream a structured
+          idea with Problem, ICP, MVP, Moat, Risks, and Go-to-market.
+        </p>
+      </header>
+
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <div className="min-w-0 space-y-8">
+          <div className="rounded-2xl border border-stone-200/80 bg-white/85 p-6 shadow-sm backdrop-blur sm:p-8">
+            <p className="mb-3 text-base font-medium text-stone-700">Industry</p>
+            <div className="mb-6 flex flex-wrap gap-2.5">
+              {INDUSTRY_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => applyChip(chip)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    activeChip === chip
+                      ? "bg-teal-800 text-white"
+                      : "border border-stone-300 bg-stone-50 text-stone-700 hover:border-teal-700/40 hover:bg-teal-50"
+                  } disabled:opacity-50`}
+                >
+                  {chip}
+                </button>
               ))}
-            </ul>
-          )}
-        </div>
-      </aside>
+            </div>
 
-      <div className="space-y-6">
-        <header>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-teal-800">
-            Workspace
-          </p>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight text-stone-900 md:text-5xl">
-            Business Idea Generator
-          </h1>
-          <p className="mt-3 max-w-2xl text-stone-600">
-            Pick an industry chip, add optional context, then stream a structured
-            idea with Problem, ICP, MVP, Moat, Risks, and Go-to-market.
-          </p>
-        </header>
-
-        <div className="rounded-2xl border border-stone-200/80 bg-white/85 p-6 shadow-sm backdrop-blur">
-          <p className="mb-2 text-sm font-medium text-stone-700">Industry</p>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {INDUSTRY_CHIPS.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                disabled={busy}
-                onClick={() => applyChip(chip)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                  activeChip === chip
-                    ? "bg-teal-800 text-white"
-                    : "border border-stone-300 bg-stone-50 text-stone-700 hover:border-teal-700/40 hover:bg-teal-50"
-                } disabled:opacity-50`}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          <label
-            htmlFor="context"
-            className="mb-2 block text-sm font-medium text-stone-700"
-          >
-            Context{" "}
-            <span className="font-normal text-stone-400">(optional)</span>
-          </label>
-          <textarea
-            id="context"
-            value={context}
-            onChange={(e) => setContext(e.target.value.slice(0, 500))}
-            rows={4}
-            placeholder="e.g. B2B SaaS for clinics in Brazil, bootstrapped, targeting clinic managers…"
-            className="w-full resize-y rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-800 outline-none ring-teal-700/20 placeholder:text-stone-400 focus:ring-2"
-            disabled={busy}
-          />
-          <div className="mt-1 text-right text-xs text-stone-400">
-            {context.length}/500
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => void generate()}
-              disabled={busy || exhausted}
-              className="rounded-xl bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50"
+            <label
+              htmlFor="context"
+              className="mb-2 block text-base font-medium text-stone-700"
             >
-              {busy
-                ? "Generating…"
-                : idea
-                  ? "Regenerate idea"
-                  : "Generate idea"}
-            </button>
-            {status === "error" && (
+              Context{" "}
+              <span className="font-normal text-stone-400">(optional)</span>
+            </label>
+            <textarea
+              id="context"
+              value={context}
+              onChange={(e) => setContext(e.target.value.slice(0, 500))}
+              rows={5}
+              placeholder="e.g. B2B SaaS for clinics in Brazil, bootstrapped, targeting clinic managers…"
+              className="w-full resize-y rounded-xl border border-stone-300 bg-white px-4 py-3.5 text-base text-stone-800 outline-none ring-teal-700/20 placeholder:text-stone-400 focus:ring-2"
+              disabled={busy}
+            />
+            <div className="mt-2 text-right text-sm text-stone-400">
+              {context.length}/500
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={() => void generate()}
                 disabled={busy || exhausted}
-                className="rounded-xl border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                className="rounded-xl bg-teal-800 px-6 py-3 text-base font-semibold text-white transition hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Retry
+                {busy
+                  ? "Generating…"
+                  : idea
+                    ? "Regenerate idea"
+                    : "Generate idea"}
               </button>
+              {status === "error" && (
+                <button
+                  type="button"
+                  onClick={() => void generate()}
+                  disabled={busy || exhausted}
+                  className="rounded-xl border border-stone-300 px-6 py-3 text-base font-medium text-stone-700 transition hover:bg-stone-50"
+                >
+                  Retry
+                </button>
+              )}
+              {idea && !busy && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdea("");
+                    setScores(null);
+                    setActiveIdeaId(null);
+                    setStatus("idle");
+                    setError(null);
+                  }}
+                  className="rounded-xl border border-stone-300 px-6 py-3 text-base font-medium text-stone-700 transition hover:bg-stone-50"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {error && (
+              <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base text-red-800">
+                {error}
+              </p>
             )}
+          </div>
+
+          <div className="rounded-2xl border border-stone-200/80 bg-white/90 p-6 shadow-sm sm:p-10">
             {idea && !busy && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIdea("");
-                  setScores(null);
-                  setActiveIdeaId(null);
-                  setStatus("idle");
-                  setError(null);
-                }}
-                className="rounded-xl border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
-              >
-                Clear
-              </button>
+              <div className="mb-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void copyMarkdown()}
+                  className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  {copied ? "Copied" : "Copy Markdown"}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadMarkdown}
+                  className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  Download .md
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void scoreCurrent()}
+                  disabled={scoring || exhausted}
+                  className="rounded-xl border border-teal-800/30 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                >
+                  {scoring ? "Scoring…" : "Score this idea (1 request)"}
+                </button>
+              </div>
+            )}
+
+            {scores && (
+              <div className="mb-8 rounded-xl border border-stone-200 bg-stone-50 px-5 py-4 text-base text-stone-700">
+                <p className="font-semibold text-stone-900">
+                  Scores · Novelty {scores.novelty}/10 · Feasibility{" "}
+                  {scores.feasibility}/10 · Overall {scores.overall}/10
+                </p>
+                {scores.notes && (
+                  <p className="mt-2 text-stone-600">{scores.notes}</p>
+                )}
+              </div>
+            )}
+
+            {status === "loading" && (
+              <div className="space-y-4 py-8">
+                <div className="h-10 w-1/2 animate-pulse rounded bg-stone-200" />
+                <div className="h-5 w-1/3 animate-pulse rounded bg-stone-100" />
+                <div className="space-y-3 pt-2">
+                  <div className="h-4 w-full animate-pulse rounded bg-stone-100" />
+                  <div className="h-4 w-11/12 animate-pulse rounded bg-stone-100" />
+                  <div className="h-4 w-4/5 animate-pulse rounded bg-stone-100" />
+                </div>
+              </div>
+            )}
+
+            {status !== "loading" && !idea && (
+              <div className="py-20 text-center">
+                <p className="font-serif text-2xl text-stone-500 sm:text-3xl">
+                  Your structured idea will stream here.
+                </p>
+                <p className="mt-3 text-base text-stone-400">
+                  Sections: Problem · ICP · MVP · Moat · Risks · Go-to-market
+                </p>
+              </div>
+            )}
+
+            {idea && (
+              <div className="markdown-content text-lg leading-relaxed text-stone-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                  {idea}
+                </ReactMarkdown>
+                {status === "streaming" && (
+                  <span className="ml-1 inline-block h-5 w-2.5 animate-pulse bg-teal-700 align-middle" />
+                )}
+              </div>
             )}
           </div>
 
-          {error && (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {error}
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-stone-200/80 bg-white/90 p-8 shadow-sm">
-          {idea && !busy && (
-            <div className="mb-5 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void copyMarkdown()}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
-              >
-                {copied ? "Copied" : "Copy Markdown"}
-              </button>
-              <button
-                type="button"
-                onClick={downloadMarkdown}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
-              >
-                Download .md
-              </button>
-              <button
-                type="button"
-                onClick={() => void scoreCurrent()}
-                disabled={scoring || exhausted}
-                className="rounded-lg border border-teal-800/30 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50"
-              >
-                {scoring ? "Scoring…" : "Score this idea (1 request)"}
-              </button>
-            </div>
-          )}
-
-          {scores && (
-            <div className="mb-6 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700">
-              <p className="font-semibold text-stone-900">
-                Scores · Novelty {scores.novelty}/10 · Feasibility{" "}
-                {scores.feasibility}/10 · Overall {scores.overall}/10
+          {showUpgrade && (
+            <div
+              id="upgrade"
+              className="rounded-2xl border border-stone-200 bg-white/95 p-8 shadow-sm sm:p-10"
+            >
+              <h2 className="mb-3 text-center font-serif text-3xl text-stone-900 sm:text-4xl">
+                Upgrade to Premium
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-center text-lg text-stone-600">
+                Premium unlocks 5 lifetime AI requests for $10/month. Generate and
+                score share the same pool.
               </p>
-              {scores.notes && (
-                <p className="mt-1 text-stone-600">{scores.notes}</p>
-              )}
-            </div>
-          )}
-
-          {status === "loading" && (
-            <div className="space-y-4 py-6">
-              <div className="h-8 w-1/2 animate-pulse rounded bg-stone-200" />
-              <div className="h-4 w-1/3 animate-pulse rounded bg-stone-100" />
-              <div className="space-y-2 pt-2">
-                <div className="h-3 w-full animate-pulse rounded bg-stone-100" />
-                <div className="h-3 w-11/12 animate-pulse rounded bg-stone-100" />
-                <div className="h-3 w-4/5 animate-pulse rounded bg-stone-100" />
-              </div>
-              <div className="h-4 w-1/4 animate-pulse rounded bg-stone-100 pt-4" />
-              <div className="h-3 w-full animate-pulse rounded bg-stone-100" />
-              <div className="h-3 w-5/6 animate-pulse rounded bg-stone-100" />
-            </div>
-          )}
-
-          {status !== "loading" && !idea && (
-            <div className="py-14 text-center">
-              <p className="font-serif text-xl text-stone-500">
-                Your structured idea will stream here.
-              </p>
-              <p className="mt-2 text-sm text-stone-400">
-                Sections: Problem · ICP · MVP · Moat · Risks · Go-to-market
-              </p>
-            </div>
-          )}
-
-          {idea && (
-            <div className="markdown-content text-stone-700">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                {idea}
-              </ReactMarkdown>
-              {status === "streaming" && (
-                <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-teal-700 align-middle" />
-              )}
+              <PricingTable />
             </div>
           )}
         </div>
 
-        {showUpgrade && (
-          <div
-            id="upgrade"
-            className="rounded-2xl border border-stone-200 bg-white/95 p-8 shadow-sm"
-          >
-            <h2 className="mb-2 text-center font-serif text-3xl text-stone-900">
-              Upgrade to Premium
-            </h2>
-            <p className="mb-8 text-center text-stone-600">
-              Premium unlocks 5 lifetime AI requests for $10/month. Generate and
-              score share the same pool.
-            </p>
-            <PricingTable />
+        <aside className="xl:sticky xl:top-6 xl:self-start">
+          <div className="rounded-2xl border border-stone-200/80 bg-white/80 p-5 shadow-sm backdrop-blur sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold tracking-wide text-stone-800">
+                History
+              </h2>
+              <span className="text-sm text-stone-400">{ideas.length}</span>
+            </div>
+            {sortedIdeas.length === 0 ? (
+              <p className="text-base text-stone-500">
+                Generated ideas will appear here.
+              </p>
+            ) : (
+              <ul className="max-h-[40rem] space-y-3 overflow-y-auto pr-1">
+                {sortedIdeas.map((item) => (
+                  <li key={item.id}>
+                    <div
+                      className={`rounded-xl border px-4 py-3 transition ${
+                        activeIdeaId === item.id
+                          ? "border-teal-700/40 bg-teal-50/80"
+                          : "border-stone-200 bg-white hover:border-stone-300"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openIdea(item)}
+                        className="w-full text-left"
+                      >
+                        <p className="line-clamp-3 text-base font-medium leading-snug text-stone-800">
+                          {item.title}
+                        </p>
+                        <p className="mt-2 text-sm text-stone-400">
+                          {new Date(item.created_at * 1000).toLocaleString()}
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void toggleFavorite(item)}
+                        className="mt-3 text-sm font-medium text-teal-800 hover:underline"
+                      >
+                        {item.favorite ? "★ Favorited" : "☆ Favorite"}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
+        </aside>
       </div>
     </div>
   );
@@ -786,14 +802,6 @@ function IdeaGenerator() {
 export default function Product() {
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#f0fdf8_0%,_#fafaf9_42%,_#e7e5e4_100%)]">
-      <div className="absolute left-4 top-4 z-10">
-        <Link
-          href="/"
-          className="text-sm font-medium text-stone-600 transition hover:text-stone-900"
-        >
-          ← IdeaGen
-        </Link>
-      </div>
       <IdeaGenerator />
     </main>
   );
