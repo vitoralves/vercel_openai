@@ -125,8 +125,31 @@ function IdeaGenerator() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const upgradeRef = useRef<HTMLDivElement | null>(null);
+  const scrollToUpgradeRef = useRef(false);
 
   const displayUsage = usage;
+
+  const openUpgrade = useCallback(() => {
+    scrollToUpgradeRef.current = true;
+    setShowUpgrade(true);
+    if (upgradeRef.current) {
+      upgradeRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToUpgradeRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showUpgrade || !scrollToUpgradeRef.current) return;
+    scrollToUpgradeRef.current = false;
+    upgradeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showUpgrade]);
+
+  useEffect(() => {
+    if (window.location.hash !== "#upgrade") return;
+    scrollToUpgradeRef.current = true;
+    setShowUpgrade(true);
+  }, []);
 
   const authHeaders = useCallback(async () => {
     const jwt = await getToken();
@@ -237,7 +260,7 @@ function IdeaGenerator() {
 
     if ((displayUsage?.remaining ?? 0) <= 0) {
       setStatus("limited");
-      if (displayUsage?.plan !== "premium") setShowUpgrade(true);
+      if (displayUsage?.plan !== "premium") openUpgrade();
       setError(
         displayUsage?.plan === "premium"
           ? "Premium request limit reached. Generate and score share the same credits."
@@ -317,7 +340,7 @@ function IdeaGenerator() {
                   : FREE_LIFETIME_LIMIT),
             );
             setStatus("limited");
-            if (nextPlan !== "premium") setShowUpgrade(true);
+            if (nextPlan !== "premium") openUpgrade();
             setError(
               (detail.message as string) ||
                 "Request limit reached. Generate and score share the same credits.",
@@ -419,7 +442,7 @@ function IdeaGenerator() {
     if (!idea.trim() || scoring) return;
     if ((displayUsage?.remaining ?? 0) <= 0) {
       setStatus("limited");
-      if (displayUsage?.plan !== "premium") setShowUpgrade(true);
+      if (displayUsage?.plan !== "premium") openUpgrade();
       setError(
         displayUsage?.plan === "premium"
           ? "Premium request limit reached. Generate and score share the same credits."
@@ -452,7 +475,7 @@ function IdeaGenerator() {
                 : FREE_LIFETIME_LIMIT),
           );
           setStatus("limited");
-          if (nextPlan !== "premium") setShowUpgrade(true);
+          if (nextPlan !== "premium") openUpgrade();
           setUsage({
             plan: nextPlan,
             used: Number(detail.used ?? nextLimit),
@@ -534,10 +557,7 @@ function IdeaGenerator() {
       </div>
 
       <div className="mb-8">
-        <UsageBanner
-          usage={displayUsage}
-          onUpgradeClick={() => setShowUpgrade(true)}
-        />
+        <UsageBanner usage={displayUsage} onUpgradeClick={openUpgrade} />
       </div>
 
       <header className="mb-8 max-w-4xl">
@@ -721,8 +741,9 @@ function IdeaGenerator() {
 
           {showUpgrade && (
             <div
+              ref={upgradeRef}
               id="upgrade"
-              className="rounded-2xl border border-stone-200 bg-white/95 p-8 shadow-sm sm:p-10"
+              className="scroll-mt-6 rounded-2xl border border-stone-200 bg-white/95 p-8 shadow-sm sm:p-10"
             >
               <h2 className="mb-3 text-center font-serif text-3xl text-stone-900 sm:text-4xl">
                 Upgrade to Premium
@@ -731,7 +752,9 @@ function IdeaGenerator() {
                 Premium unlocks 5 lifetime AI requests for $10/month. Generate
                 and score share the same pool.
               </p>
-              <PricingTable />
+              <div className="mx-auto max-w-3xl">
+                <PricingTable for="user" />
+              </div>
             </div>
           )}
         </div>
