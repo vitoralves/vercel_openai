@@ -3,6 +3,10 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "functions": {
+    "api/index.py": {
+      "maxDuration": 300,
+      "excludeFiles": "{.next,.git,node_modules,venv,.venv}/**"
+    },
     "api/**/*.py": {
       "excludeFiles": "{.next,.git,node_modules,venv,.venv}/**"
     }

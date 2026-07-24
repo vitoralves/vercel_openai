@@ -1,7 +1,7 @@
 "use client";
 
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 export default function Home() {
   return (
@@ -47,8 +47,8 @@ export default function Home() {
           </h2>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-stone-600">
             Sign in, add optional context, and stream a structured business idea
-            for the AI agent economy. Generate and score share one request
-            pool, 1 free, 5 with Premium.
+            for the AI agent economy. Generate and score share one request pool,
+            1 free, 5 with Premium.
           </p>
 
           <SignedOut>

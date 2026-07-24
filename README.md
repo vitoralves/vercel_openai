@@ -20,7 +20,7 @@ Next.js ──rewrite──► FastAPI (/api/*)
                        ├─ Premium check (Clerk Billing API)
                        ├─ request quota reserve/refund (Redis INCR)
                        ├─ stream structured idea (OpenAI SSE)
-                       ├─ save history (Redis list)
+                       ├─ persist history on stream success (Redis list)
                        └─ optional score (OpenAI JSON, same quota)
 ```
 
@@ -29,7 +29,7 @@ Next.js ──rewrite──► FastAPI (/api/*)
 | Next.js + Python on one deploy | Portfolio-ready full stack; Vercel hosts both |
 | Quota on the server | UI is advisory; Redis atomic `INCR` prevents abuse |
 | SSE | Faster perceived UX than waiting for a full completion |
-| History via client save after stream | Keeps the stream handler simple and reliable |
+| History saved server-side at end of stream | Avoids lost paid generations if the client fails to POST |
 
 ## Features
 
@@ -42,7 +42,8 @@ Next.js ──rewrite──► FastAPI (/api/*)
 - Copy Markdown + download `.md`
 - Optional **Score this idea** (novelty / feasibility / overall; costs 1 request)
 - Generate rate limit: 10/hour/user; score rate limit: 20/hour/user
-- Failed/empty generations and failed scores refund the request credit
+- Failed/empty/aborted-before-content generations and failed scores refund the request credit
+- Successful streams emit a final SSE `idea` event after server-side history save
 
 ## API
 
@@ -78,9 +79,10 @@ CLERK_JWKS_URL=https://YOUR_INSTANCE.clerk.accounts.dev/.well-known/jwks.json
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 # optional
-OPENAI_MODEL_FREE=gpt-5-nano
-OPENAI_MODEL_PREMIUM=gpt-5-nano
+OPENAI_MODEL=gpt-5-nano
 ```
+
+Python API SSE streams are configured with `maxDuration: 300` in `vercel.json` (plan limits still apply).
 
 ```bash
 source .venv/bin/activate
@@ -111,6 +113,7 @@ vercel --prod
 2. **Reserve-then-refund** — blocks concurrent double-spends; refunds empty/failed streams and failed scores.
 3. **Score is opt-in but metered** — useful product signal without an unbounded OpenAI path.
 4. **Export is client-side `.md`** — useful immediately; PDF/public shares deferred.
+5. **Empty/aborted streams refund** — credits stick only when tokens were produced; ideas persist via a final SSE `idea` event.
 
 ## What I’d do next
 

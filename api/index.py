@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -38,7 +39,7 @@ logger = logging.getLogger("ideagen")
 app = FastAPI(
     title="IdeaGen API",
     description="Authenticated business-idea generation with lifetime request quotas.",
-    version="1.2.0",
+    version="1.3.0",
 )
 
 _jwks_url = (os.getenv("CLERK_JWKS_URL") or "").strip()
@@ -52,8 +53,7 @@ clerk_config = ClerkConfig(jwks_url=_jwks_url)
 clerk_guard = ClerkHTTPBearer(clerk_config)
 
 MAX_CONTEXT_CHARS = 500
-DEFAULT_FREE_MODEL = "gpt-5-nano"
-DEFAULT_PREMIUM_MODEL = "gpt-5-nano"
+DEFAULT_MODEL = "gpt-5-nano"
 
 
 class GenerateRequest(BaseModel):
@@ -80,10 +80,8 @@ def _sanitize_context(value: Optional[str]) -> str:
     return text[:MAX_CONTEXT_CHARS]
 
 
-def _model_for_plan(premium: bool) -> str:
-    if premium:
-        return os.getenv("OPENAI_MODEL_PREMIUM", DEFAULT_PREMIUM_MODEL)
-    return os.getenv("OPENAI_MODEL_FREE", DEFAULT_FREE_MODEL)
+def _model_name() -> str:
+    return os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
 
 def _usage_payload(user_id: str, premium: bool, used: Optional[int] = None) -> dict:
@@ -256,7 +254,7 @@ def generate(
 
     context = _sanitize_context(body.context)
     prompt_content = _structured_prompt(context)
-    model = _model_for_plan(premium)
+    model = _model_name()
 
     client = OpenAI()
     try:
@@ -274,41 +272,77 @@ def generate(
 
     def event_stream():
         produced = False
+        parts: list[str] = []
+
+        def _refund_if_empty() -> None:
+            if reserved and not produced:
+                refund_request(user_id)
+
+        def _persist(content: str) -> Optional[dict]:
+            text = content.strip()
+            if not text:
+                return None
+            try:
+                return save_idea(user_id, content=text, context=context)
+            except Exception:
+                logger.exception("generate_save_failed user=%s", user_id[:8])
+                return None
+
         try:
             for chunk in stream:
                 text = chunk.choices[0].delta.content
                 if not text:
                     continue
                 produced = True
+                parts.append(text)
                 lines = text.split("\n")
                 for line in lines[:-1]:
                     yield f"data: {line}\n\n"
                     yield "data:  \n"
                 yield f"data: {lines[-1]}\n\n"
-        except Exception:
-            if reserved:
-                refund_request(user_id)
-            logger.exception("generate_stream_failed user=%s", user_id[:8])
+        except GeneratorExit:
+            _refund_if_empty()
+            logger.info(
+                "generate_client_disconnect user=%s produced=%s",
+                user_id[:8],
+                produced,
+            )
             raise
+        except Exception:
+            logger.exception("generate_stream_failed user=%s", user_id[:8])
+            if not produced:
+                _refund_if_empty()
+                return
+            idea = _persist("".join(parts))
+            if idea:
+                yield f"event: idea\ndata: {json.dumps(idea)}\n\n"
+            return
+
         latency_ms = int((time.perf_counter() - started) * 1000)
-        if reserved and not produced:
-            refund_request(user_id)
+        if not produced:
+            _refund_if_empty()
             logger.info(
                 "generate_empty user=%s premium=%s latency_ms=%d",
                 user_id[:8],
                 premium,
                 latency_ms,
             )
-        else:
-            logger.info(
-                "generate_ok user=%s premium=%s produced=%s used=%d latency_ms=%d model=%s",
-                user_id[:8],
-                premium,
-                produced,
-                used_after,
-                latency_ms,
-                model,
-            )
+            return
+
+        idea = _persist("".join(parts))
+        if idea:
+            yield f"event: idea\ndata: {json.dumps(idea)}\n\n"
+
+        logger.info(
+            "generate_ok user=%s premium=%s produced=%s used=%d latency_ms=%d model=%s saved=%s",
+            user_id[:8],
+            premium,
+            produced,
+            used_after,
+            latency_ms,
+            model,
+            bool(idea),
+        )
 
     headers = {
         "Cache-Control": "no-cache",

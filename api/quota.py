@@ -7,6 +7,18 @@ FREE_LIFETIME_LIMIT = 1
 PREMIUM_LIFETIME_LIMIT = 5
 USAGE_KEY_PREFIX = "ideagen:usage:"
 
+_REFUND_LUA = """
+local current = redis.call('GET', KEYS[1])
+if not current then
+  return 0
+end
+current = tonumber(current)
+if current == nil or current <= 0 then
+  return 0
+end
+return redis.call('DECR', KEYS[1])
+"""
+
 _redis: Optional[Redis] = None
 
 
@@ -52,9 +64,14 @@ def reserve_request(user_id: str, limit: int) -> tuple[bool, int]:
     return True, used
 
 
-def refund_request(user_id: str) -> None:
+def refund_request(user_id: str) -> int:
+    """
+    Atomically refund one credit, never going below zero.
+    Returns usage after refund.
+    """
     redis = get_redis()
     key = usage_key(user_id)
-    used = get_usage(user_id)
-    if used > 0:
-        redis.decr(key)
+    result = redis.eval(_REFUND_LUA, keys=[key], args=[])
+    if result is None:
+        return 0
+    return max(int(result), 0)

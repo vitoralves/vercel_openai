@@ -5,9 +5,11 @@ from typing import Any
 
 from openai import OpenAI
 
+DEFAULT_MODEL = "gpt-5-nano"
+
 
 def score_idea(content: str) -> dict[str, Any]:
-    model = os.getenv("OPENAI_MODEL_FREE", "gpt-5-nano")
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
     client = OpenAI()
     prompt = (
         "Score this business idea for the AI agent economy. "

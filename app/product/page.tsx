@@ -1,17 +1,12 @@
 "use client";
 
+import { PricingTable, UserButton, useAuth, useUser } from "@clerk/nextjs";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
-import {
-  PricingTable,
-  UserButton,
-  useAuth,
-  useUser,
-} from "@clerk/nextjs";
-import { fetchEventSource } from "@microsoft/fetch-event-source";
+import remarkGfm from "remark-gfm";
 
 type Usage = {
   plan: "free" | "premium";
@@ -113,11 +108,8 @@ function UsageBanner({
 }
 
 function IdeaGenerator() {
-  const { getToken, has, isLoaded: authLoaded } = useAuth();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const { user } = useUser();
-  const clerkPremium = Boolean(
-    has?.({ plan: "premium_subscription" }) || has?.({ plan: "premium" }),
-  );
   const [usage, setUsage] = useState<Usage | null>(null);
   const [context, setContext] = useState("");
   const [activeChip, setActiveChip] = useState<string | null>(null);
@@ -134,27 +126,7 @@ function IdeaGenerator() {
   const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const displayUsage: Usage | null = useMemo(() => {
-    if (!usage) {
-      if (!clerkPremium) return null;
-      return {
-        plan: "premium",
-        used: 0,
-        limit: PREMIUM_LIFETIME_LIMIT,
-        remaining: PREMIUM_LIFETIME_LIMIT,
-      };
-    }
-    if (clerkPremium && usage.plan === "free") {
-      const used = usage.used ?? 0;
-      return {
-        plan: "premium",
-        used,
-        limit: PREMIUM_LIFETIME_LIMIT,
-        remaining: Math.max(PREMIUM_LIFETIME_LIMIT - used, 0),
-      };
-    }
-    return usage;
-  }, [clerkPremium, usage]);
+  const displayUsage = usage;
 
   const authHeaders = useCallback(async () => {
     const jwt = await getToken();
@@ -196,10 +168,10 @@ function IdeaGenerator() {
   }, [authHeaders]);
 
   useEffect(() => {
-    if (!authLoaded) return;
+    if (!authLoaded || !user?.id) return;
     void loadUsage();
     void loadIdeas();
-  }, [loadUsage, loadIdeas, user?.id, authLoaded, clerkPremium]);
+  }, [loadUsage, loadIdeas, authLoaded, user?.id]);
 
   useEffect(() => {
     const refresh = () => {
@@ -217,13 +189,15 @@ function IdeaGenerator() {
   }, [loadUsage]);
 
   useEffect(() => {
-    if (!clerkPremium) return;
-    setShowUpgrade(false);
-    if ((displayUsage?.remaining ?? 1) > 0) {
-      setStatus((prev) => (prev === "limited" ? "idle" : prev));
-      setError(null);
+    if (!usage) return;
+    if (usage.plan === "premium") {
+      setShowUpgrade(false);
+      if ((usage.remaining ?? 0) > 0) {
+        setStatus((prev) => (prev === "limited" ? "idle" : prev));
+        setError(null);
+      }
     }
-  }, [clerkPremium, displayUsage?.remaining]);
+  }, [usage]);
 
   const sortedIdeas = useMemo(() => {
     return [...ideas].sort((a, b) => {
@@ -291,6 +265,7 @@ function IdeaGenerator() {
 
     const ctx = context.trim();
     let buffer = "";
+    let savedFromServer: SavedIdea | null = null;
     try {
       await fetchEventSource("/api/generate", {
         method: "POST",
@@ -334,8 +309,7 @@ function IdeaGenerator() {
           }
 
           if (response.status === 402) {
-            const nextPlan =
-              detail.plan === "premium" || clerkPremium ? "premium" : "free";
+            const nextPlan = detail.plan === "premium" ? "premium" : "free";
             const nextLimit = Number(
               detail.limit ??
                 (nextPlan === "premium"
@@ -374,6 +348,20 @@ function IdeaGenerator() {
           throw new Error("request_failed");
         },
         onmessage(ev) {
+          if (ev.event === "idea") {
+            try {
+              const saved = JSON.parse(ev.data) as SavedIdea;
+              savedFromServer = saved;
+              setIdeas((prev) => [
+                saved,
+                ...prev.filter((item) => item.id !== saved.id),
+              ]);
+              setActiveIdeaId(saved.id);
+            } catch {
+              savedFromServer = null;
+            }
+            return;
+          }
           buffer += ev.data;
           setIdea(buffer);
         },
@@ -387,7 +375,9 @@ function IdeaGenerator() {
           }
           setStatus("error");
           setError(
-            "Stream interrupted. You were not charged if nothing was generated.",
+            buffer
+              ? "Stream interrupted after content started. Your request was charged; history may still have been saved."
+              : "Stream interrupted before content arrived. Your credit should have been refunded.",
           );
           throw err;
         },
@@ -396,7 +386,9 @@ function IdeaGenerator() {
       if (!controller.signal.aborted) {
         if (buffer) {
           setStatus("idle");
-          await saveIdea(buffer, ctx);
+          if (!savedFromServer) {
+            await saveIdea(buffer, ctx);
+          }
         } else {
           setStatus("error");
           setError("No idea was generated. Please try again.");
@@ -420,9 +412,7 @@ function IdeaGenerator() {
     });
     if (!res.ok) return;
     const updated = (await res.json()) as SavedIdea;
-    setIdeas((prev) =>
-      prev.map((i) => (i.id === updated.id ? updated : i)),
-    );
+    setIdeas((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
   };
 
   const scoreCurrent = async () => {
@@ -454,8 +444,7 @@ function IdeaGenerator() {
       if (!res.ok) {
         const detail = payload.detail || payload;
         if (res.status === 402) {
-          const nextPlan =
-            detail.plan === "premium" || clerkPremium ? "premium" : "free";
+          const nextPlan = detail.plan === "premium" ? "premium" : "free";
           const nextLimit = Number(
             detail.limit ??
               (nextPlan === "premium"
@@ -567,7 +556,9 @@ function IdeaGenerator() {
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
         <div className="min-w-0 space-y-8">
           <div className="rounded-2xl border border-stone-200/80 bg-white/85 p-6 shadow-sm backdrop-blur sm:p-8">
-            <p className="mb-3 text-base font-medium text-stone-700">Industry</p>
+            <p className="mb-3 text-base font-medium text-stone-700">
+              Industry
+            </p>
             <div className="mb-6 flex flex-wrap gap-2.5">
               {INDUSTRY_CHIPS.map((chip) => (
                 <button
@@ -737,8 +728,8 @@ function IdeaGenerator() {
                 Upgrade to Premium
               </h2>
               <p className="mx-auto mb-8 max-w-xl text-center text-lg text-stone-600">
-                Premium unlocks 5 lifetime AI requests for $10/month. Generate and
-                score share the same pool.
+                Premium unlocks 5 lifetime AI requests for $10/month. Generate
+                and score share the same pool.
               </p>
               <PricingTable />
             </div>
