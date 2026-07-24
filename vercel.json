@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "functions": {
+    "api/**/*.py": {
+      "excludeFiles": "{.next,.git,node_modules,venv,.venv}/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api", "destination": "/api/index" },
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ]
+}
